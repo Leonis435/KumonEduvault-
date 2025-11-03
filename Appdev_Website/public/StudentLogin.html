@@ -198,7 +198,7 @@
 
       try {
         // Send login request to the backend
-        const response = await fetch('http://localhost:5000/login', {  // Make sure the URL is correct
+        const response = await fetch('/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

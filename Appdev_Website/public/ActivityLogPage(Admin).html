@@ -259,7 +259,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 🧾 Load logs from MongoDB
   async function loadLogs() {
     try {
-      const res = await fetch("http://localhost:5000/admin/logs", {
+      const res = await fetch("/admin/logs", {
         credentials: "include",
         headers: { "Accept": "application/json" }
       });

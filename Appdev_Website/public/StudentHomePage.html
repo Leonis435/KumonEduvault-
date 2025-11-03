@@ -146,7 +146,7 @@ button[type="submit"]:hover{background:#333}
     // ✅ Step 1: Load full student info and progress
     async function loadStudentInfo() {
       try {
-        const res = await fetch(`http://localhost:5000/student/${user.email}`);
+        const res = await fetch(`/student/${user.email}`);
         const studentData = await res.json();
 
         if (!res.ok || !studentData._id) {
@@ -174,7 +174,7 @@ button[type="submit"]:hover{background:#333}
     async function fetchNotifications(studentId) {
       if (!studentId) return;
       try {
-        const res = await fetch(`http://localhost:5000/notifications/${studentId}/student`);
+        const res = await fetch(`/notifications/${studentId}/student`);
         const notifications = await res.json();
 
         const container = document.getElementById("notifications-container");
@@ -201,7 +201,7 @@ button[type="submit"]:hover{background:#333}
 
           notice.querySelector(".take-btn").addEventListener("click", async () => {
             try {
-              await fetch(`http://localhost:5000/notifications/${n._id}/read`, {
+              await fetch(`/notifications/${n._id}/read`, {
                 method: "PATCH",
               });
             } catch (err) {
@@ -222,7 +222,7 @@ button[type="submit"]:hover{background:#333}
     // ✅ Step 3: Fetch instructors directly from MongoDB
     async function loadInstructors() {
       try {
-        const response = await fetch("http://localhost:5000/instructors");
+        const response = await fetch("/instructors");
         if (!response.ok) throw new Error("Failed to fetch instructors");
 
         const instructors = await response.json();
@@ -269,7 +269,7 @@ button[type="submit"]:hover{background:#333}
       e.preventDefault();
       const formData = new FormData(e.target);
       try {
-        const uploadResponse = await fetch("http://localhost:5000/upload", {
+        const uploadResponse = await fetch("/upload", {
           method: "POST",
           body: formData,
         });

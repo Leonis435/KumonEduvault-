@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // === Load instructors from backend ===
   async function loadInstructors() {
     try {
-      const res = await fetch('http://localhost:5000/instructors');
+      const res = await fetch('/instructors');
       const instructors = await res.json();
       instructorSelect.innerHTML = '<option value="">Select Instructor</option>';
       instructors.forEach(i => {
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // === Load files ===
   async function loadFiles() {
     try {
-      const res = await fetch('http://localhost:5000/files');
+      const res = await fetch('/files');
       const files = await res.json();
       renderFiles(files);
     } catch (err) {
@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
     formData.append('email', email); // ✅ FIX: send the logged-in student’s email
 
     try {
-      const res = await fetch('http://localhost:5000/upload', { method: 'POST', body: formData });
+      const res = await fetch('/upload', { method: 'POST', body: formData });
       const data = await res.json();
 
       if (data.success) {
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // === Download file function ===
   window.downloadFile = async function (id) {
     try {
-      const res = await fetch(`http://localhost:5000/files/${id}`);
+      const res = await fetch(`/files/${id}`);
       const blob = await res.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);

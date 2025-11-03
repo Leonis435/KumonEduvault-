@@ -176,7 +176,7 @@
 
       // ✅ Fetch student submissions linked to this instructor
       try {
-        const res = await fetch(`http://localhost:5000/api/instructor/${instructor._id}/submissions`, {
+        const res = await fetch(`/api/instructor/${instructor._id}/submissions`, {
           credentials: 'include'
         });
         const submissions = await res.json();
@@ -211,7 +211,7 @@
               <p><em>From: ${file.uploaderEmail || 'Unknown'}</em></p>
               ${file.contentType?.startsWith('image/')
                 ? `<img src="data:${file.contentType};base64,${file.base64Data}" />`
-                : `<a href="http://localhost:5000/files/${file._id}" target="_blank">Download File</a>`}
+                : `<a href="/files/${file._id}" target="_blank">Download File</a>`}
             `;
             editArea.style.display = 'none';
           });
@@ -228,7 +228,7 @@
           // 🗑️ Delete
           deleteBtn.addEventListener('click', async () => {
             if (confirm('Delete this submission?')) {
-              const delRes = await fetch(`http://localhost:5000/api/instructor/submissions/${file._id}`, {
+              const delRes = await fetch(`/api/instructor/submissions/${file._id}`, {
                 method: 'DELETE',
                 credentials: 'include'
               });
@@ -253,7 +253,7 @@
           remarks: editRemarks.value
         };
 
-        const res = await fetch(`http://localhost:5000/api/instructor/submissions/${selectedSubmission._id}`, {
+        const res = await fetch(`/api/instructor/submissions/${selectedSubmission._id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(update),
@@ -270,7 +270,7 @@
 
       // 🚪 Logout
       logoutBtn.addEventListener('click', async () => {
-        await fetch('http://localhost:5000/api/logout', { credentials: 'include' });
+        await fetch('/api/logout', { credentials: 'include' });
         localStorage.removeItem('loggedInUser');
         window.location.href = 'InstructorLogin.html';
       });

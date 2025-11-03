@@ -184,7 +184,7 @@
 
     // 🚪 Logout
     logoutBtn.addEventListener('click', async () => {
-      await fetch('http://localhost:5000/api/logout', { credentials: 'include' });
+      await fetch('/api/logout', { credentials: 'include' });
       localStorage.removeItem('loggedInUser');
       window.location.href = 'AdminLogin.html';
     });
@@ -192,7 +192,7 @@
     // 📂 Load files from server
     async function loadFiles() {
       try {
-        const res = await fetch('http://localhost:5000/admin/files', { credentials: 'include' });
+        const res = await fetch('/admin/files', { credentials: 'include' });
         const files = await res.json();
         allFiles = Array.isArray(files) ? files : [];
         renderTable();
@@ -248,27 +248,27 @@
               <h3>${file.worksheetValue || file.fileName}</h3>
               <p><strong>Uploader:</strong> ${file.uploaderEmail || 'Unknown'}</p>
               <p><strong>Instructor:</strong> ${file.instructor || '—'}</p>
-              <img src="http://localhost:5000/admin/files/${file._id}" alt="${file.fileName}" />
+              <img src="/admin/files/${file._id}" alt="${file.fileName}" />
             `;
           } else {
             preview.innerHTML = `
               <h3>${file.worksheetValue || file.fileName}</h3>
               <p><strong>Uploader:</strong> ${file.uploaderEmail || 'Unknown'}</p>
               <p><strong>Instructor:</strong> ${file.instructor || '—'}</p>
-              <a href="http://localhost:5000/admin/files/${file._id}" target="_blank">Download File</a>
+              <a href="/admin/files/${file._id}" target="_blank">Download File</a>
             `;
           }
         });
 
         // Download file
         downloadBtn.addEventListener('click', () => {
-          window.open(`http://localhost:5000/admin/files/${file._id}`, '_blank');
+          window.open(`/admin/files/${file._id}`, '_blank');
         });
 
         // Delete file
         deleteBtn.addEventListener('click', async () => {
           if (!confirm(`Delete "${file.fileName}"?`)) return;
-          const res = await fetch(`http://localhost:5000/admin/files/${file._id}`, {
+          const res = await fetch(`/admin/files/${file._id}`, {
             method: 'DELETE',
             credentials: 'include'
           });
