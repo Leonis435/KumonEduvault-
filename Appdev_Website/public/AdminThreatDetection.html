@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin — Threat Detection & Security</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ⚠️ Do not change your CSS — left identical */
+:root{
+  --bg:#10ceeb;
+  --panel:#ffffff;
+  --muted:#6b7280;
+  --accent:#0b74d1;
+  --danger:#ef4444;
+  --ok:#16a34a;
+  --shadow: 0 10px 30px rgba(10,20,30,0.06);
+  --radius:12px;
+  --maxw:1200px;
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:#0b1220;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+.app{display:flex;min-height:100vh}
+nav.sidebar{width:200px;background:#e9ecef;padding:28px 18px;border-right:1px solid rgba(11,17,20,0.03);}
+nav.sidebar .logo{font-weight:800;font-size:18px;margin-bottom:10px}
+nav.sidebar a{display:block;padding:10px 12px;border-radius:8px;color:#111827;text-decoration:none;font-weight:600;margin-bottom:6px}
+nav.sidebar a.active{background:#fff;box-shadow:var(--shadow)}
+main.container{flex:1;padding:28px;max-width:var(--maxw);margin:0 auto;width:100%}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+header .title{font-size:22px;font-weight:800}
+header .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.controls input[type="search"], .controls select{padding:10px 12px;border-radius:8px;border:1px solid rgba(11,17,20,0.06);min-width:200px}
+.controls .btn{padding:10px 12px;border-radius:8px;border:0;background:var(--accent);color:white;font-weight:700}
+.controls .btn.ghost{background:#fff;border:1px solid rgba(11,17,20,0.06);color:#0b1220}
+.controls .btn.warn{background:var(--danger)}
+.card{background:var(--panel);padding:16px;border-radius:12px;box-shadow:var(--shadow);border:1px solid rgba(11,17,20,0.02);margin-bottom:16px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead th{padding:12px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid rgba(11,17,20,0.04)}
+tbody td{padding:12px 10px;border-bottom:1px solid rgba(11,17,20,0.03);vertical-align:middle}
+tbody tr:hover{background:linear-gradient(90deg,rgba(11,17,20,0.02),transparent)}
+.col-actions{width:220px;text-align:right}
+.muted{color:var(--muted)}
+.chip{display:inline-block;padding:6px 8px;border-radius:999px;background:rgba(11,17,20,0.04);font-weight:700}
+.pill-yes{background:var(--ok);color:white;padding:6px 8px;border-radius:999px;font-weight:700}
+.pill-no{background:#f3f4f6;color:#111827;padding:6px 8px;border-radius:999px;font-weight:700}
+.small{font-size:13px;color:var(--muted)}
+.action-btn{padding:8px 10px;border-radius:8px;border:1px solid rgba(11,17,20,0.06);background:transparent;margin-left:6px}
+.action-btn.quarantine{background:#fff3f2;border-color:rgba(239,68,68,0.12);color:var(--danger)}
+.action-btn.release{background:#effaf3;border-color:rgba(16,185,129,0.12);color:var(--ok)}
+.recent table thead th, .recent table tbody td{font-size:13px;padding:10px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center;z-index:90}
+.modal{width:720px;max-width:96%;background:var(--panel);padding:18px;border-radius:10px;border:1px solid rgba(11,17,20,0.03)}
+.modal h3{margin:0 0 8px}
+.modal .row{display:flex;gap:12px;margin-top:8px}
+.modal .row .col{flex:1}
+.modal pre{background:#f8fafc;padding:12px;border-radius:8px;overflow:auto;border:1px solid rgba(11,17,20,0.02)}
+.modal .buttons{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+@media (max-width:980px){
+  nav.sidebar{display:none}
+  .modal{width:92%}
+  .col-actions{width:160px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <nav class="sidebar">
+    <div class="logo">Kumon Admin</div>
+    <a href="AdminHomePage.html">Dashboard</a>
+    <a href="AdminFileManagement.html">Files</a>
+    <a href="#" class="active">Threats</a>
+    <a href="AdminPermissionPage.html">Permissions</a>
+    <a href="ActivityLogPage(Admin).html">Logs</a>
+  </nav>
+
+  <main class="container">
+    <header class="top">
+      <div>
+        <div class="title">Threat Detection & Security</div>
+        <div class="small">Monitor threats, quarantine files, and review security actions</div>
+      </div>
+
+      <div class="controls">
+        <select id="filterThreat">
+          <option value="">All threat types</option>
+        </select>
+        <select id="filterStatus">
+          <option value="">All</option>
+          <option value="active">Active</option>
+          <option value="resolved">Resolved</option>
+        </select>
+        <input id="search" type="search" placeholder="Search file or type">
+      </div>
+    </header>
+
+    <section class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <strong>Detected Threats</strong>
+          <div class="muted small">Real-time threat logs from file uploads</div>
+        </div>
+      </div>
+
+      <div class="table-wrap" style="margin-top:12px">
+        <table id="threatsTable">
+          <thead>
+            <tr>
+              <th>File Name</th>
+              <th>Threat Type</th>
+              <th>Detected At</th>
+              <th>Status</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="threatsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">Threat Details</h3>
+    <div class="row">
+      <div class="col">
+        <div class="small muted">File</div>
+        <div id="mFile" style="font-weight:700"></div>
+      </div>
+      <div class="col">
+        <div class="small muted">Threat Type</div>
+        <div id="mType" style="font-weight:700"></div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="small muted">Detected At</div>
+      <div id="mDate"></div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="small muted">Details</div>
+      <pre id="mDetails" style="white-space:pre-wrap"></pre>
+    </div>
+    <div class="buttons">
+      <button class="action-btn" id="mResolve">Mark Resolved</button>
+      <button class="btn ghost" id="mClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = '/admin/threats';
+const tbody = document.getElementById('threatsBody');
+const filterThreat = document.getElementById('filterThreat');
+const filterStatus = document.getElementById('filterStatus');
+const searchInput = document.getElementById('search');
+const modalWrap = document.getElementById('modal');
+const mFile = document.getElementById('mFile');
+const mType = document.getElementById('mType');
+const mDate = document.getElementById('mDate');
+const mDetails = document.getElementById('mDetails');
+const mResolve = document.getElementById('mResolve');
+const mClose = document.getElementById('mClose');
+let threats = [];
+
+async function loadThreats() {
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error('Failed to fetch threats');
+    threats = await res.json();
+    populateThreatFilter();
+    renderThreats();
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="5" class="muted">Error loading threats</td></tr>`;
+  }
+}
+
+function populateThreatFilter() {
+  const types = [...new Set(threats.map(t => t.threatType))];
+  filterThreat.innerHTML = '<option value="">All threat types</option>' + types.map(t => `<option>${t}</option>`).join('');
+}
+
+function renderThreats() {
+  const q = searchInput.value.toLowerCase();
+  const tf = filterThreat.value;
+  const sf = filterStatus.value;
+
+  const filtered = threats.filter(t => {
+    if (tf && t.threatType !== tf) return false;
+    if (sf && t.status !== sf) return false;
+    if (q && !(t.fileName?.toLowerCase().includes(q) || t.threatType?.toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  tbody.innerHTML = filtered.map(t => `
+    <tr data-id="${t._id}">
+      <td>${escapeHtml(t.fileName)}</td>
+      <td>${escapeHtml(t.threatType)}</td>
+      <td>${new Date(t.detectedAt).toLocaleString()}</td>
+      <td>${t.status === 'resolved' ? '<span class="pill-no">Resolved</span>' : '<span class="pill-yes">Active</span>'}</td>
+      <td>
+        <button class="action-btn" data-action="view">View</button>
+        ${t.status !== 'resolved' ? `<button class="action-btn release" data-action="resolve">Resolve</button>` : ''}
+      </td>
+    </tr>
+  `).join('') || `<tr><td colspan="5" class="muted">No threats found</td></tr>`;
+
+  document.querySelectorAll('#threatsBody .action-btn').forEach(btn => btn.addEventListener('click', handleAction));
+}
+
+function handleAction(e) {
+  const tr = e.target.closest('tr');
+  const id = tr.dataset.id;
+  const action = e.target.dataset.action;
+  const threat = threats.find(t => t._id === id);
+  if (!threat) return;
+  if (action === 'view') return openModal(threat);
+  if (action === 'resolve') return resolveThreat(id);
+}
+
+function openModal(t) {
+  mFile.textContent = t.fileName;
+  mType.textContent = t.threatType;
+  mDate.textContent = new Date(t.detectedAt).toLocaleString();
+  mDetails.textContent = t.details || 'No details available';
+  mResolve.dataset.id = t._id;
+  modalWrap.style.display = 'flex';
+}
+
+mClose.addEventListener('click', () => modalWrap.style.display = 'none');
+modalWrap.addEventListener('click', e => { if (e.target === modalWrap) modalWrap.style.display = 'none'; });
+mResolve.addEventListener('click', async () => {
+  const id = mResolve.dataset.id;
+  await resolveThreat(id);
+  modalWrap.style.display = 'none';
+});
+
+async function resolveThreat(id) {
+  try {
+    const res = await fetch(`/admin/threats/${id}/resolve`, { method: 'PATCH' });
+    if (!res.ok) throw new Error('Failed to resolve');
+    await loadThreats();
+  } catch (err) {
+    alert('Error resolving threat');
+  }
+}
+
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+filterThreat.addEventListener('change', renderThreats);
+filterStatus.addEventListener('change', renderThreats);
+searchInput.addEventListener('input', renderThreats);
+
+loadThreats();
+</script>
+</body>
+</html>

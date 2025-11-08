@@ -260,6 +260,7 @@
       <a href="#">Home</a>
       <a href="ActivityLogPage(Admin).html">Logs</a>
       <a href="AdminFileManagement.html">File Management</a>
+      <a href="AdminThreatDetection.html">Threat Detection</a>
       <button id="logout-btn" style="margin-left:10px;background:#dc3545;color:white;border:none;padding:6px 12px;border-radius:8px;">Logout</button>
     </nav>
   </header>
@@ -536,7 +537,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("logout-btn").addEventListener("click", async () => {
     try {
-      const res = await fetch("/logout", { method: "POST" });
+      const res = await fetch("/api/logout", { method: "POST" });
       if (res.ok) window.location.href = "/";
       else alert("Logout failed");
     } catch (err) {

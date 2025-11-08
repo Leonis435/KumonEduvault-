@@ -6,6 +6,8 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const multer = require('multer');
+const NodeClam = require('clamscan');
+const fs = require('fs');
 
 const Admin = require('./models/Admin');
 const Instructor = require('./models/Instructor');
@@ -13,8 +15,36 @@ const Student = require('./models/Student');
 const Notification = require('./models/Notification');
 const File = require('./models/File');
 const ActivityLog = require('./models/ActivityLog');
+const Threat = require('./models/Threat');
 
 const app = express();
+
+// ========== File Threat Detection Setup ==========
+
+let clamav = null;
+
+(async () => {
+  try {
+    const clamscan = await new NodeClam().init({
+      removeInfected: false,
+      quarantineInfected: false,
+      scanRecursively: true,
+      debugMode: false,
+      clamdscan: {
+        socket: '/var/run/clamd.scan/clamd.sock', // Linux default
+        host: '127.0.0.1',
+        port: 3310,
+        timeout: 60000,
+      },
+      preference: 'clamdscan',
+    });
+    clamav = clamscan;
+    console.log('✅ File Threat Detection: ClamAV initialized and ready');
+  } catch (err) {
+    console.warn('⚠️ File Threat Detection running in fallback mode (ClamAV not found).');
+  }
+})();
+
 
 // ===== Middleware =====
 app.use(cors({ origin: true, credentials: true }));
@@ -348,13 +378,71 @@ app.get('/instructors/:subject', async (req, res) => {
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
     const { fileName, worksheetValue, instructor, email } = req.body;
-    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded.' });
+    if (!req.file)
+      return res.status(400).json({ success: false, message: 'No file uploaded.' });
 
-    // If an instructor id was supplied, validate
+    // convenience values
+    const uploaderEmail = email || (req.session?.user?.email ?? 'unknown');
+    const uploaderId = req.session?.user?.id ?? null;
+    const uploaderRole = req.session?.user?.role ?? 'system';
+
+    // 🧠 STEP 1: Virus scan before saving
+    if (clamav) {
+      try {
+        const { isInfected, viruses } = await clamav.scanBuffer(req.file.buffer);
+
+        if (isInfected) {
+          console.warn(`🚨 Infected file detected: ${viruses.join(', ')}`);
+
+          // 1) Save threat record to DB (for admin UI / audit)
+          try {
+            await Threat.create({
+              fileName: req.file.originalname || fileName || 'unknown',
+              uploaderEmail,
+              detectedViruses: viruses,
+              detectedAt: new Date(),
+              status: 'blocked'
+            });
+          } catch (thErr) {
+            console.error('Error saving Threat record:', thErr);
+            // continue — we still want to block upload even if Threat save fails
+          }
+
+          // 2) Activity log entry
+          await logActivity({
+            userId: uploaderId,
+            userRole: uploaderRole,
+            userEmail: uploaderEmail,
+            action: `⚠️ File upload blocked - Virus detected: ${viruses.join(', ')}`,
+          });
+
+          // 3) Respond to uploader (do NOT save file)
+          return res.status(400).json({
+            success: false,
+            message: `File rejected due to virus: ${viruses.join(', ')}`,
+          });
+        }
+
+        // OPTIONAL: If you want to record successful scan metadata in Threat (or a separate collection),
+        // you could add a 'scan log' here. Not required.
+      } catch (scanErr) {
+        console.error('⚠️ Virus scan error:', scanErr);
+        return res.status(500).json({
+          success: false,
+          message: 'Error scanning file for threats.',
+        });
+      }
+    } else {
+      console.warn('⚠️ ClamAV not initialized — skipping virus scan.');
+      // Optionally record that scan was skipped (for audits) — up to you.
+    }
+
+    // ✅ STEP 2: Continue if file is safe
     let instructorDoc = null;
     if (instructor) {
       instructorDoc = await Instructor.findById(instructor);
-      if (!instructorDoc) return res.status(400).json({ success: false, message: 'Invalid instructor ID.' });
+      if (!instructorDoc)
+        return res.status(400).json({ success: false, message: 'Invalid instructor ID.' });
     }
 
     const newFile = new File({
@@ -363,16 +451,16 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       contentType: req.file.mimetype,
       data: req.file.buffer,
       instructor: instructorDoc ? instructorDoc._id : null,
-      uploaderEmail: email || (req.session?.user?.email ?? 'unknown'),
+      uploaderEmail,
       uploadedAt: new Date(),
     });
 
     await newFile.save();
 
     await logActivity({
-      userId: req.session?.user?.id ?? null,
-      userRole: req.session?.user?.role ?? 'system',
-      userEmail: req.session?.user?.email ?? email ?? 'unknown',
+      userId: uploaderId,
+      userRole: uploaderRole,
+      userEmail: uploaderEmail,
       action: `File uploaded: ${fileName}`,
     });
 
@@ -382,6 +470,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error while uploading.' });
   }
 });
+
+
 
 // Fetch all files
 app.get('/files', async (req, res) => {
@@ -490,39 +580,99 @@ app.delete('/api/instructor/submissions/:fileId', async (req, res) => {
 // Instructor-specific upload to student (instructor must be authenticated)
 app.post('/instructor/upload', upload.single('file'), async (req, res) => {
   try {
-    if (!req.session?.user || req.session.user.role !== 'instructor') return res.status(403).json({ message: 'Unauthorized' });
+    // ✅ Ensure only instructors can upload
+    if (!req.session?.user || req.session.user.role !== 'instructor')
+      return res.status(403).json({ message: 'Unauthorized' });
 
     const { studentId, fileName, notes } = req.body;
     const file = req.file;
-    if (!file || !studentId || !fileName) return res.status(400).json({ message: 'All fields are required.' });
 
+    if (!file || !studentId || !fileName)
+      return res.status(400).json({ message: 'All fields are required.' });
+
+    const uploaderEmail = req.session.user.email;
+    const uploaderId = req.session.user.id;
+
+    // 🧠 STEP 1: Virus scan before saving file
+    if (clamav) {
+      try {
+        const { isInfected, viruses } = await clamav.scanBuffer(file.buffer);
+        if (isInfected) {
+          console.warn(`🚨 Infected file detected: ${viruses.join(', ')}`);
+
+          // 1️⃣ Save a threat record for admin monitoring
+          try {
+            await Threat.create({
+              fileName: file.originalname || fileName,
+              uploaderEmail,
+              detectedViruses: viruses,
+              detectedAt: new Date(),
+              status: 'blocked',
+            });
+          } catch (thErr) {
+            console.error('Error saving Threat record:', thErr);
+          }
+
+          // 2️⃣ Log it in ActivityLog
+          await logActivity({
+            userId: uploaderId,
+            userRole: 'instructor',
+            userEmail: uploaderEmail,
+            action: `⚠️ File upload blocked - Virus detected: ${viruses.join(', ')}`,
+          });
+
+          // 3️⃣ Reject the file upload
+          return res.status(400).json({
+            success: false,
+            message: `File rejected due to virus: ${viruses.join(', ')}`,
+          });
+        }
+      } catch (scanErr) {
+        console.error('⚠️ Virus scan error:', scanErr.message);
+        return res.status(500).json({
+          success: false,
+          message: 'Error scanning file for threats.',
+        });
+      }
+    } else {
+      console.warn('⚠️ ClamAV not initialized — skipping virus scan.');
+    }
+
+    // ✅ STEP 2: Continue if file is safe
     const newFile = new File({
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
       data: file.buffer,
       fileName,
-      uploaderEmail: req.session.user.email,
-      instructor: req.session.user.id,
+      uploaderEmail,
+      instructor: uploaderId,
+      student: studentId,
       notes: notes || '',
-      uploadedAt: new Date()
+      uploadedAt: new Date(),
     });
 
     await newFile.save();
 
     await logActivity({
-      userId: req.session.user.id,
-      userRole: req.session.user.role,
-      userEmail: req.session.user.email,
+      userId: uploaderId,
+      userRole: 'instructor',
+      userEmail: uploaderEmail,
       action: `Instructor uploaded file: ${fileName}`,
     });
 
-    res.json({ success: true, message: 'File uploaded and linked to student!', fileId: newFile._id });
+    res.json({
+      success: true,
+      message: 'File uploaded and linked to student!',
+      fileId: newFile._id,
+    });
   } catch (err) {
     console.error('[INSTRUCTOR UPLOAD ERROR]', err);
     res.status(500).json({ message: 'File upload failed.', error: err.message });
   }
 });
+
+
 
 /* ===========================
    Notifications (shared)
@@ -768,6 +918,35 @@ app.get('/admin/logs', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[GET /api/admin/logs]', err);
     res.status(500).json({ message: 'Server error fetching logs' });
+  }
+});
+
+/* ===========================
+   🧠 Admin: View Threat Logs
+   =========================== */
+app.get('/admin/threats', requireAdmin, async (req, res) => {
+  try {
+    const threats = await Threat.find().sort({ detectedAt: -1 }).lean();
+    res.json(threats);
+  } catch (err) {
+    console.error('[GET /admin/threats]', err);
+    res.status(500).json({ message: 'Error fetching threats' });
+  }
+});
+
+// ✅ Admin can mark a threat as resolved
+app.patch('/admin/threats/:id/resolve', requireAdmin, async (req, res) => {
+  try {
+    const updated = await Threat.findByIdAndUpdate(
+      req.params.id,
+      { status: 'resolved' },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Threat not found' });
+    res.json({ message: 'Threat resolved', threat: updated });
+  } catch (err) {
+    console.error('[PATCH /admin/threats/:id/resolve]', err);
+    res.status(500).json({ message: 'Error resolving threat' });
   }
 });
 

@@ -6,7 +6,7 @@ const fileSchema = new mongoose.Schema({
   data: { type: Buffer, required: true },
   contentType: { type: String, required: true },
   uploaderEmail: { type: String, required: true },
-  instructor: { type: mongoose.Schema.Types.ObjectId, ref: 'Instructor', required: true }, // ✅ Important
+  instructor: { type: mongoose.Schema.Types.ObjectId, ref: 'Instructor', required: true },
   uploadedAt: { type: Date, default: Date.now }
 });
 
