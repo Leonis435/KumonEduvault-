@@ -111,7 +111,7 @@ async function logActivity({ userId = null, userRole = 'system', userEmail = 'un
 
 // ====== DATABASE ======
 mongoose.connect(
-  "mongodb+srv://lancemacalalad1104_db_user:OxUBj8xxF85JYKIA@cluster0.sxatxqn.mongodb.net/Users?retryWrites=true&w=majority",
+  "mongodb+srv://lancemacalalad1104_db_user:OxUBj8xxF85JYKIA@cluster0.9zcnyng.mongodb.net/Users?retryWrites=true&w=majority",
   { useNewUrlParser: true, useUnifiedTopology: true }
 )
   .then(() => console.log('Connected to MongoDB'))
